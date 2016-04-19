@@ -1,7 +1,8 @@
+'use strict';
 
-var call = (callback) => {
+var call = function (callback) {
     if (typeof(callback) === 'function') {
-        callback.apply(null, Array.prototype.slice(arguments, 1));
+        callback.apply(null, Array.prototype.slice.call(arguments, 1));
     }
 };
 

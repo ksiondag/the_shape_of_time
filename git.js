@@ -1,8 +1,10 @@
+'use strict';
 
 var exec = require('child_process').exec;
 
 var call = require('./call');
 
+var git;
 if (exports) {
     git = exports;
 } else {
@@ -27,9 +29,10 @@ git.commit = (dir, commitFile, callback) => {
     });
 };
 
+// TODO: no named branch to just get list of branches
 git.branch = (dir, name, callback) => {
-    exec(`git branch ${name}`, {cwd: dir}, (err) => {
-        call(callback);
+    exec(`git branch ${name}`, {cwd: dir}, (err, stdout) => {
+        call(callback, stdout);
     });
 };
 
@@ -42,6 +45,12 @@ git.checkout = (dir, name, callback) => {
 git.merge = (dir, name, callback) => {
     exec(`git merge ${name}`, {cwd: dir}, (err) => {
         call(callback);
+    });
+};
+
+git.log = (dir, callback) => {
+    exec(`git log`, {cwd: dir}, (err, stdout) => {
+        call(callback, stdout);
     });
 };
 

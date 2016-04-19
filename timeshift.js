@@ -1,3 +1,4 @@
+'use strict';
 
 var fs = require('fs');
 var path = require('path');
@@ -5,15 +6,6 @@ var path = require('path');
 var git = require('./git');
 
 var timeshift = exports;
-
-var publishedTrees = (callback) => {
-    fs.readFile('assets/timetrees.txt', 'utf-8', (err, data) => {
-        if (err) {
-            throw err;
-        }
-        callback(data.split('\n').filter((tree) => tree !== ''));
-    });
-};
 
 var readState = (path, callback) => {
     fs.readFile(`${path}/state.json`, 'utf-8', (err, data) => {
@@ -114,22 +106,92 @@ var commitBranch = (branchPath, treePath, callback) => {
     });
 };
 
-timeshift.createTree = (tree) => {
+timeshift.createTree = (tree, callback) => {
     var assetPath = `assets/${tree}`;
     var treePath = `saveState/${tree}`;
 
-    commitBranch(`${assetPath}/start`, treePath);
+    commitBranch(`${assetPath}/start`, treePath, callback);
 };
 
-timeshift.createTrees = () => {
-    publishedTrees((trees) => {
-        trees.forEach((tree) => {
-            timeshift.createTree(tree);
+var treeDir = (tree) => {
+    return `saveState/${tree}`;
+};
+
+timeshift.history = (tree, callback) => {
+    // TODO: function that constructs directory
+    var dir = treeDir(tree);
+
+    git.log(dir, callback);
+};
+
+timeshift.moments = (tree, callback) => {
+    var dir = treeDir(tree);
+
+    git.branch(dir, '', callback);
+};
+
+timeshift.warp = (tree, target, callback) => {
+    var dir = treeDir(tree);
+
+    git.checkout(dir, target, callback);
+};
+
+timeshift.merge = (tree, target, callback) => {
+    var dir = treeDir(tree);
+
+    git.merge(dir, target, callback);
+};
+
+var assetDir = (tree) => {
+    return `assets/${tree}`;
+};
+
+var getState = (tree, callback) => {
+    var dir = treeDir(tree);
+
+    fs.readdir(dir, (err, files) => {
+        var count = 0;
+        var state = {};
+        if (err) {
+            throw err;
+        }
+        files.forEach((file) => {
+            fs.readFile(`${dir}/${file}`, 'utf-8', (err, data) => {
+                if (!err) {
+                    state[file] = data.trim();
+                }
+                count += 1;
+
+                if (count === files.length) {
+                    callback(state);
+                }
+            });
         });
     });
 };
 
-if (require.main === module) {
-    timeshift.createTrees();
-}
+timeshift.checkWin = (tree, callback) => {
+    var dir = assetDir(tree);
+
+    fs.readFile(`${dir}/winCondition.json`, 'utf-8', (err, data) => {
+        var winningState;
+        if (err) {
+            throw err;
+        }
+        winningState = JSON.parse(data);
+
+        getState(tree, (state) => {
+            var item;
+            for (item in winningState) {
+                if (winningState.hasOwnProperty(item)) {
+                    if (winningState[item] !== state[item]) {
+                        callback(false);
+                        return
+                    }
+                }
+            }
+            callback(true);
+        });
+    });
+};
 
